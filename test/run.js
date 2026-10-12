@@ -64,6 +64,10 @@ const OMARCHY = process.env.OMARCHY_PATH || "/usr/share/omarchy"
 const defaultsPath = OMARCHY + "/default/hypr/looknfeel.lua"
 const baseline = fs.existsSync(defaultsPath) ? readFile(defaultsPath).animations : []
 
+// Personal rules belong in the personal module, never the packaged entrypoint.
+eq("full opacity persists in looknfeel config body",
+   readSource(Lua.renderConfigBody({ "omaland:opaque_windows": true }, baseline)).opaque, true)
+
 console.log("\nSchema")
 
 // Regression: the numeric guard used to run before the type dispatch, so
@@ -162,8 +166,8 @@ check("opaque toggle uses Omarchy's o.window helper",
 check("opaque rule is detected by the harness", readSource(opaque).opaque === true)
 check("a plain config block is not read as opaque", readSource("hl.config({ general = { gaps_in = 1 } })").opaque === false)
 eq("opaque toggle off emits nothing", Lua.renderWindowsBody({ "omaland:opaque_windows": false }), "")
-eq("window rules stay out of the looknfeel body",
-   Lua.renderConfigBody({ "omaland:opaque_windows": true }, baseline), "")
+eq("window rules share the personal looknfeel body",
+   readSource(Lua.renderConfigBody({ "omaland:opaque_windows": true }, baseline)).opaque, true)
 eq("config settings stay out of the hyprland body",
    Lua.renderWindowsBody({ "decoration:rounding": 12 }), "")
 check("preview carries both bodies", (function() {

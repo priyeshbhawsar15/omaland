@@ -1,10 +1,7 @@
 .pragma library
 
-// Renders and parses Omaland's managed blocks, one per file:
-//
-//   hypr/looknfeel.lua   hl.config / hl.animation
-//   hypr/hyprland.lua    o.window rules, where the stock template's own
-//                        example puts personal window rules
+// Renders the personal managed block in hypr/looknfeel.lua. The Omarchy
+// hyprland.lua entrypoint remains package-managed.
 //
 // Only what's between the fences is ever rewritten. The same text feeds
 // `hyprctl eval` for the live preview, so preview and saved state can't drift.
@@ -108,6 +105,8 @@ function renderConfigBody(overrides, baseline) {
     var animations = renderAnimations(baseline, Number(overrides[ANIMATION_SPEED_KEY]))
     if (animations) chunks.push(animations)
   }
+  var windows = renderWindowsBody(overrides)
+  if (windows) chunks.push(windows)
   return chunks.join("\n\n")
 }
 
@@ -121,12 +120,7 @@ function renderWindowsBody(overrides) {
 
 // Everything Omaland currently asserts, in one chunk, for `hyprctl eval`.
 function renderPreview(overrides, baseline) {
-  var parts = []
-  var config = renderConfigBody(overrides, baseline)
-  var windows = renderWindowsBody(overrides)
-  if (config) parts.push(config)
-  if (windows) parts.push(windows)
-  return parts.join("\n\n")
+  return renderConfigBody(overrides, baseline)
 }
 
 function renderBlock(body) {

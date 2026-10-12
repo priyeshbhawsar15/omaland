@@ -63,10 +63,10 @@ and break `omarchy theme set`.
 
 ## How it works
 
-**Where it writes.** One fenced block per file — `hl.config` and `hl.animation`
-in `looknfeel.lua`, `o.window` rules in `hyprland.lua`. Nothing outside the
-fences is touched, and clearing every override removes the blocks and restores
-both files exactly.
+**Where it writes.** This personal fork writes one fenced block in
+`looknfeel.lua`, including `hl.config`, `hl.animation` and `o.window` rules.
+The package-managed `hyprland.lua` entrypoint is never written. Nothing outside
+the fence is touched; clearing every override restores the personal file.
 
 **Reading state back** is done by Lua, not by a parser. `read.lua` runs the
 block against recording stubs for `hl` and `o` and reports what it set, so the

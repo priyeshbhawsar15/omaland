@@ -27,10 +27,7 @@ Item {
   readonly property string home: Quickshell.env("HOME")
   readonly property string pluginDir: (manifest && manifest.__sourceDir) || (home + "/.config/omarchy/plugins/bobbynicholas.omaland")
   readonly property string configPath: home + "/.config/hypr/looknfeel.lua"
-  readonly property string windowsPath: home + "/.config/hypr/hyprland.lua"
-  readonly property string displayPath: overrides[Schema.OPAQUE_WINDOWS_KEY] === true
-    ? "~/.config/hypr/looknfeel.lua + hyprland.lua"
-    : "~/.config/hypr/looknfeel.lua"
+  readonly property string displayPath: "~/.config/hypr/looknfeel.lua"
 
   property bool opened: false
 
@@ -40,7 +37,6 @@ Item {
 
   // Kept apart so reloading one file can't drop the other's keys.
   property var diskConfig: ({})
-  property var diskWindows: ({})
   property int pendingSaves: 0
 
   property int sectionIndex: 0
@@ -82,7 +78,6 @@ Item {
   function open(payloadJson) {
     root.opened = true
     configFile.reload()
-    windowsFile.reload()
     defaultsFile.reload()
     refresh()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
@@ -222,7 +217,6 @@ Item {
   function adoptDisk() {
     var out = {}
     for (var k in root.diskConfig) out[k] = root.diskConfig[k]
-    for (var j in root.diskWindows) out[j] = root.diskWindows[j]
     root.overrides = out
   }
 
@@ -230,23 +224,18 @@ Item {
     persistTimer.stop()
 
     var configCurrent = configFile.text()
-    var windowsCurrent = windowsFile.text()
     var configNext = LuaConfig.applyBlock(configCurrent, LuaConfig.renderConfigBody(root.overrides, root.animationBaseline))
-    var windowsNext = LuaConfig.applyBlock(windowsCurrent, LuaConfig.renderWindowsBody(root.overrides))
 
     var writeConfig = configNext !== configCurrent
-    var writeWindows = windowsNext !== windowsCurrent
-
-    if (!writeConfig && !writeWindows) {
+    if (!writeConfig) {
       reloadProc.running = true
       return
     }
 
-    root.pendingSaves = (writeConfig ? 1 : 0) + (writeWindows ? 1 : 0)
+    root.pendingSaves = 1
     root.statusText = "Saving…"
     root.selfWrite = true
     if (writeConfig) configFile.setText(configNext)
-    if (writeWindows) windowsFile.setText(windowsNext)
   }
 
   // Reload only once both files have landed, so Hyprland never reads a
@@ -341,6 +330,7 @@ Item {
     function apply(out) {
       var read = LuaConfig.parseHarness(out)
       var next = read.overrides
+      if (read.opaque) next[Schema.OPAQUE_WINDOWS_KEY] = true
       var speed = LuaConfig.animationSpeedFrom(read.animations, root.animationBaseline)
       if (speed !== undefined) next[Schema.ANIMATION_SPEED_KEY] = speed
       root.diskConfig = next
@@ -353,21 +343,6 @@ Item {
     }
   }
 
-  Process {
-    id: windowsReader
-    function apply(out) {
-      var read = LuaConfig.parseHarness(out)
-      var next = {}
-      if (read.opaque) next[Schema.OPAQUE_WINDOWS_KEY] = true
-      root.diskWindows = next
-      root.adoptDisk()
-    }
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: windowsReader.apply(text) }
-    stderr: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: if (String(text || "").trim() !== "") root.errorText = "hyprland.lua: " + String(text).trim()
-    }
-  }
 
   // Omarchy's shipped animation set, the fixed reference the multiplier scales.
   Process {
@@ -458,21 +433,6 @@ Item {
     }
   }
 
-  FileView {
-    id: windowsFile
-    path: root.windowsPath
-    atomicWrites: true
-    printErrors: false
-    watchChanges: true
-    onLoaded: root.readBlock(text(), windowsReader)
-    onLoadFailed: { root.diskWindows = ({}); root.adoptDisk() }
-    onSaved: root.noteSaved()
-    onSaveFailed: root.noteSaveFailed("~/.config/hypr/hyprland.lua")
-    onFileChanged: {
-      if (root.selfWrite || persistTimer.running) return
-      reload()
-    }
-  }
 
   FileView {
     id: defaultsFile
