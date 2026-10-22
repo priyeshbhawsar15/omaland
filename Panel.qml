@@ -7,6 +7,7 @@ import qs.Commons
 import qs.Ui
 import "Schema.js" as Schema
 import "LuaConfig.js" as LuaConfig
+import "Paths.js" as Paths
 
 // Omaland — a GUI for the visual half of ~/.config/hypr/looknfeel.lua.
 //
@@ -25,7 +26,7 @@ Item {
   property var manifest: null
 
   readonly property string home: Quickshell.env("HOME")
-  readonly property string pluginDir: (manifest && manifest.__sourceDir) || (home + "/.config/omarchy/plugins/bobbynicholas.omaland")
+  readonly property string readLua: Paths.fromUrl(Qt.resolvedUrl("read.lua"))
   readonly property string configPath: home + "/.config/hypr/looknfeel.lua"
   readonly property string displayPath: "~/.config/hypr/looknfeel.lua"
 
@@ -214,6 +215,15 @@ Item {
     evalProc.running = true
   }
 
+  // The shell mirrors decoration:rounding and general:gaps_out into Style for
+  // the menu, notifications and every panel, but only re-reads them at startup
+  // and when a theme is applied — it doesn't watch looknfeel.lua. Ask it to
+  // re-read after anything that changes what Hyprland reports. Undocumented
+  // surface, so a missing method leaves the shell stale rather than throwing.
+  function syncShellStyle() {
+    if (typeof Style.scheduleRefresh === "function") Style.scheduleRefresh()
+  }
+
   function adoptDisk() {
     var out = {}
     for (var k in root.diskConfig) out[k] = root.diskConfig[k]
@@ -321,7 +331,7 @@ Item {
       reader.apply("")
       return
     }
-    reader.command = ["lua", root.pluginDir + "/read.lua", "-e", body]
+    reader.command = ["lua", root.readLua, "-e", body]
     reader.running = true
   }
 
@@ -369,6 +379,7 @@ Item {
   Process {
     id: evalProc
     onExited: {
+      root.syncShellStyle()
       if (!root.previewPending) return
       root.previewPending = false
       Qt.callLater(root.livePreview)
@@ -381,6 +392,7 @@ Item {
     onExited: {
       errorsProc.running = true
       root.refresh()
+      root.syncShellStyle()
     }
   }
 
@@ -441,7 +453,7 @@ Item {
     // Run the packaged file directly rather than its text: it is Omarchy's own
     // and only needs reading once.
     onLoaded: {
-      baselineReader.command = ["lua", root.pluginDir + "/read.lua", path]
+      baselineReader.command = ["lua", root.readLua, path]
       baselineReader.running = true
     }
   }
